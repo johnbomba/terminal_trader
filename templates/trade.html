@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- this isn't displayed on the webpage -->
+        <meta charset="utf8">
+        <title>BUY</title>
+    </head>
+    <body>
+        <!-- this is displayed on the webpage -->
+        <h1>BUY MENU</h1>
+        <form action="/buy" method="post">
+            <input name="ticker_symbol" placeholder="symbol">
+            <input name="number_of_shares" placeholder="no. of shares">
+            <input type="submit">
+        </form>
+        <h2>{{result}}</h2>
+    </body>
+
+

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- this isn't displayed on the webpage -->
+        <meta charset="utf8">
+        <title>Stock Quote</title>
+    </head>
+    <body>
+        <!-- this is displayed on the webpage -->
+        <h1>Stock Quote</h1>
+        <form action="/quote" method="post">
+            <input name="ticker_symbol" placeholder="Symbol">
+        </form>
+        <h2>Last Sale</h2>
+            {{result}}
+        <a href="/menu">Main Menu</a>
+
+    </body>
