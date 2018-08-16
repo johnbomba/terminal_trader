@@ -425,7 +425,7 @@ def holdings():
     database = 'trade_information.db'
 
     username = current_user()
-    query = 'SELECT * FROM holdings WHERE username = "{}"'.format(username)
+    query = 'SELECT * FROM holdings WHERE username = "{}";'.format(username)
     cursor.execute(query)
     holdings = cursor.fetchall()
     return holdings
