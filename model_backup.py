@@ -96,7 +96,6 @@ def sell(username, ticker_symbol, trade_volume):
     #compare trade volume with how much stock we have
     #if trade_volume <= our stock, proceed
     #else return to menu
-    #we need a database to save how much money we have and how much stock
     username = current_user()
     database = 'trade_information.db'
     connection = sqlite3.connect(database, check_same_thread=False)
@@ -110,7 +109,7 @@ def sell(username, ticker_symbol, trade_volume):
         current_number_shares = fetch_result[1]
 
 
-    last_price = float(quote_last_price(ticker_symbol))
+    last_price = float(quote_last(ticker_symbol))
     brokerage_fee = 6.95 #TODO un-hardcode this value
     current_balance = get_user_balance(username) #TODO un-hardcode this value
     print("Price", last_price)
@@ -186,7 +185,7 @@ def buy(username, ticker_symbol, trade_volume):
     database = 'trade_information.db'
     #we need to return True or False for the confirmation message
     trade_volume = float(trade_volume)
-    last_price = float(quote_last_price(ticker_symbol))
+    last_price = float(quote_last(ticker_symbol))
     brokerage_fee = 6.95 #TODO un-hardcode this value
     username = current_user()
 #    print(username)
@@ -287,7 +286,7 @@ def calculate_balance(ticker_symbol, trade_volume):
     database = 'trade_information.db'
 
     current_balance = 1000.0 #TODO un-hardcode this value
-    last_price = float(quote_last_price(ticker_symbol))
+    last_price = float(quote_last(ticker_symbol))
     brokerage_fee = 6.95 #TODO un-hardcode this value
     transaction_cost = (trade_volume * last_price) + brokerage_fee
     new_balance = current_balance - transaction_cost
@@ -306,7 +305,7 @@ def lookup_ticker_symbol(company_name):
     return json.loads(requests.get(endpoint).text)[0]['Symbol']
 
 
-def quote_last_price(ticker_symbol):
+def quote_last(ticker_symbol):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
     database = 'trade_information.db'
@@ -414,7 +413,7 @@ def leaderboard():
 #    username = current_user()
 #    symbols=cursor.execute("SELECT ticker_symbol FROM holdings WHERE user='{}'".format(username))
 #    for symbol in symbols:
-#        last_sale = float(quote_last_price(symbol))
+#        last_sale = float(quote_last(symbol))
 #        select num_shares per symbol
 #        shares = cursor.execute("SELECT num_shares FROM holdings WHERE ticker_symbol='{}'".format(symbol))
 #        profit = last_sale

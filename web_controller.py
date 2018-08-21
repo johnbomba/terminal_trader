@@ -71,7 +71,7 @@ def quote():
         return render_template('quote.html')
     else:
         submitted_symbol=request.form['ticker_symbol']
-        result = m.quote_last_price(submitted_symbol)
+        result = m.quote_last(submitted_symbol)
         return render_template('quote.html',result=result)
 # TODO app.route trade should do both buys and sells
 # @app.route('/trade',methods=['GET','POST'])
@@ -91,7 +91,7 @@ def buy():
         submitted_volume=request.form['number_of_shares']
         submitted_volume = int(submitted_volume)
         confirmation_message, return_list = m.buy(username,submitted_symbol,submitted_volume)
-        result = "You bought {} shares of {}.".format(submitted_volume, submitted_symbol)
+        result = f"You paid{m.quote_last(submitted_symbol)} for {submitted_volume} shares of {submitted_symbol}."
         if confirmation_message == True:
             m.buy_db(return_list)
             return render_template('buy.html', result=result)
@@ -108,7 +108,7 @@ def sell():
         submitted_volume=request.form['number_of_shares']
         submitted_volume = int(submitted_volume)
         confirmation_message, return_list = m.sell(username,submitted_symbol,submitted_volume)
-        result = "You sold {} shares of {}.".format(submitted_volume, submitted_symbol)
+        result = f"You sold {submitted_volume} shares of {submitted_symbol} at {m.quote_last(submitted_symbol)}"
         if confirmation_message == True:
             m.sell_db(return_list)
             m.updateHoldings()
@@ -125,6 +125,14 @@ def holdings():
     else:
         return render_template('holdings.html')
 
+@app.route('/history',methods=['GET','POST'])
+def history():
+    username=m.current_user()
+    if request.method=="GET":
+        result = m.history()
+        return render_template('history.html', result=result)
+    else:
+        return render_template('history.html')
 
 @app.route('/leaderboard',methods=['GET','POST'])
 def leaderboard():
