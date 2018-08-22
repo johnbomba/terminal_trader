@@ -34,11 +34,20 @@ def is_admin():
 def current_user():
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
-    query = 'SELECT username FROM current_user;'
+    query = 'SELECT count(*), username FROM current_user;'
     cursor.execute(query)
     username = cursor.fetchone()
-    print(username)
-    return username[0]
+    count = int(username[0])
+    username = username[1]
+    if count == 0:
+        cursor.execute("INSERT INTO current_user(username)VALUES('oaisfhaoidj');"  )
+        connection.commit()
+        cursor.close()
+        connection.close()
+    else:
+        return username
+        cursor.close()
+        connection.close()
 
 def log_in(user_name,password):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
@@ -65,17 +74,17 @@ def create_(new_user,new_password,new_fund,admin):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
     cursor.execute(
-        """INSERT INTO user(
+        f"""INSERT INTO user(
             username,
             password,
             current_balance,
             is_admin
             ) VALUES(
-            "{}",
-            "{}",
-            {},
-            {}
-        );""".format(new_user, new_password, new_fund, admin)
+            "{new_user}",
+            "{new_password}",
+            {new_fund},
+            {admin}
+        );"""
     )
     connection.commit()
     cursor.close()
@@ -118,7 +127,7 @@ def sell(username, ticker_symbol, trade_volume):
     print("current balance", current_balance)
     transaction_revenue = (trade_volume * last_price) - brokerage_fee
     print("Total revenue of Transaction:", transaction_revenue)
-    agg_balance = float(current_balance) + float(transaction_revenue)
+    agg_balance = float(current_balance[0]) + float(transaction_revenue)
     print("\nExpected user balance after transaction:", agg_balance)
     return_list = (last_price, brokerage_fee, current_balance, trade_volume,agg_balance,username,ticker_symbol, current_number_shares)
 
@@ -148,18 +157,18 @@ def sell_db(return_list):
     current_number_shares = return_list[7]
 
     #user
-    cursor.execute("""
+    cursor.execute(f"""
         UPDATE user
-        SET current_balance = {}
-        WHERE username = '{}';
-    """.format(agg_balance, username)
-    )
+        SET current_balance = {agg_balance}
+        WHERE username = '{username}';
+    """)
+    
     #transactions
     cursor.execute("""
         INSERT INTO transactions(
         ticker_symbol,
         num_shares,
-        owner_username,
+        username,
         last_price
         ) VALUES(
         '{}',{},'{}',{}
@@ -196,10 +205,10 @@ def buy(username, ticker_symbol, trade_volume):
     print("current balance", current_balance)
     transaction_cost = (trade_volume * last_price) + brokerage_fee
     print("Total cost of Transaction:", transaction_cost)
-    left_over = float(current_balance) - float(transaction_cost)
+    left_over = float(current_balance[0]) - float(transaction_cost)
     print("\nExpected user balance after transaction:", left_over)
-    return_list = (last_price, brokerage_fee, current_balance, trade_volume,left_over,username,ticker_symbol)
-    if transaction_cost <= current_balance:
+    return_list = (last_price, brokerage_fee, current_balance[0], trade_volume,left_over,username,ticker_symbol)
+    if transaction_cost <= current_balance[0]:
         return True, return_list #success
     else:
         return False, return_list
@@ -215,8 +224,6 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
     connection = sqlite3.connect(database,check_same_thread = False)
     cursor = connection.cursor()
     last_price = return_list[0]
-    brokerage_fee = return_list[1]
-    current_balance = return_list[2]
     trade_volume = return_list[3]
     left_over = return_list[4]
     username = return_list[5]
@@ -225,22 +232,22 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
     #update users(current_balance), stocks, holdings.
     #users
         #updating the balance of the user
-    cursor.execute("""
+    cursor.execute(f"""
         UPDATE user
-        SET current_balance = {}
-        WHERE username = '{}';
-    """.format(left_over, username)
+        SET current_balance = {left_over}
+        WHERE username = '{username}';
+    """
     )
     #transactions
-    cursor.execute( """
+    cursor.execute(f"""
         INSERT INTO transactions(
         ticker_symbol,
         num_shares,
-        owner_username,
+        username,
         last_price
         ) VALUES(
-        '{}',{},'{}',{}
-        );""".format(ticker_symbol,trade_volume,username,last_price)
+        '{ticker_symbol}',{trade_volume},'{username}',{last_price}
+        );"""
     )
 
         #inserting information
@@ -249,20 +256,22 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
     cursor.execute(query)
     fetch_result = cursor.fetchone()
     if fetch_result[0] == 0: #if the user didn't own the specific stock
-        cursor.execute('''
-            INSERT INTO holdings(last_price, num_shares, ticker_symbol, username)
+        cursor.execute(f'''
+            INSERT INTO holdings(last_price, num_shares, ticker_symbol, username, avg_price)
             VALUES (
-            {},{},"{}","{}"
-            );'''.format(last_price, trade_volume, ticker_symbol, username)
+            {last_price},{trade_volume},"{ticker_symbol}","{username}","{last_price}"
+            );'''
         )
     else: #if the user already has the same stock
         tot_shares = float(fetch_result[1])+float(trade_volume)
-        cursor.execute('''
+        calc_avg = (float(fetch_result[2]*float(fetch_result[1]) + trade_volume*last_price)/tot_shares)
+        cursor.execute(f'''
             UPDATE holdings
-            SET num_shares = {}, last_price = {}
-            WHERE username = "{}" AND ticker_symbol = "{}";
-        '''.format(tot_shares, last_price, username, ticker_symbol)
-        )
+            SET num_shares = {tot_shares}, last_price = {last_price}, avg_price ={calc_avg}
+            WHERE username = "{username}" AND ticker_symbol = "{ticker_symbol}";
+        ''')
+        
+    
     connection.commit()
     cursor.close()
     connection.close()
@@ -272,14 +281,12 @@ def get_user_balance(username):
     cursor = connection.cursor()
     username = current_user()
     print(username)
-    query = 'SELECT current_balance FROM user WHERE username = "{}";'.format(username)
-#    print(f'query{query}')
+    query = f'SELECT current_balance FROM user WHERE username = "{username}";'
     cursor.execute(query)
     fetched_result = cursor.fetchone()
-#    print(f'fetched{fetched_result}')
     cursor.close()
     connection.close()
-    return fetched_result[0] #cursor.fetchone() returns tuples
+    return fetched_result #cursor.fetchone() returns tuples
 
 def calculate_balance(ticker_symbol, trade_volume):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
@@ -296,9 +303,6 @@ def calculate_balance(ticker_symbol, trade_volume):
 
 def lookup_ticker_symbol(company_name):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
-    cursor = connection.cursor()
-    database = 'trade_information.db'
-
     endpoint = 'http://dev.markitondemand.com/MODApis/Api/v2/Lookup/json?input='+company_name
     #FIXME The following return statement assumes that only one
     #ticker symbol will be matched with the user's input.
@@ -307,123 +311,76 @@ def lookup_ticker_symbol(company_name):
 
 
 def quote_last(ticker_symbol):
-    connection = sqlite3.connect('trade_information.db',check_same_thread=False)
-    cursor = connection.cursor()
-    database = 'trade_information.db'
     endpoint = 'http://dev.markitondemand.com/MODApis/Api/v2/Quote/json?symbol='+ticker_symbol
     return json.loads(requests.get(endpoint).text)['LastPrice']
 
-def calculate_p_and_l(username):
+def calculate_p_and_l():
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
-    database = 'trade_information.db'
+    query_hold = f'SELECT * FROM holdings'
+    cursor.execute(query_hold)
+    holding_info = cursor.fetchall()
+    update_leaderboard(holding_info)
+    print(f'\n\n\n\nthis is the holding info {holding_info}\n\n\n\n')
+    cursor.close()
+    connection.close()
 
-    #getting all ticker symbols for current user
-    all_ticker_symbols = 'SELECT ticker_symbol FROM holdings WHERE username = "{}"'.format(username)
-    cursor.execute(all_ticker_symbols)
-    ticker_symbols = [t[0] for t in cursor.fetchall()]
-    ticker_symbols = list(ticker_symbols)
-    p_and_l= 0
-    for symbol in ticker_symbols:
-        stock_transactions = 'SELECT * FROM transactions WHERE owner_username = "{}" and ticker_symbol = "{}"'.format(username, symbol)
-        cursor.execute(stock_transactions)
-        transactions = cursor.fetchall()
-        print(username,symbol)
-        total_shares = 0
-        price = 0
-        print(f' transactions{transactions}')
+def update_leaderboard(holding_info):
+    connection = sqlite3.connect('trade_information.db',check_same_thread=False)
+    cursor = connection.cursor()
+    print(f'\n\n\n\n this is the update leaderboard function {holding_info}\n\n\n\n')
+    for item in holding_info:
+        name = item[1]
+        symbol = item[2]
+        shares = item[3]
+        last =  item[4]
+        avg = item[5]
+        p_and_l = shares * (last - avg)
+        x = cursor.execute(f'SELECT count(*) FROM leaderboard WHERE username = "{name}";')
+        count = cursor.fetchall()
+        count = count [0][0]
+        print(f'\n\n\n\n this is the count{count}\n\n\n\n')
+        if count == 0:
+            cursor.execute(f"""
+            INSERT INTO leaderboard(
+            p_and_l, username)
+            VALUES(
+            {p_and_l}, "{name}");""")
+            # print(shares)
+            # print(p_and_l)
+            print(f'these are the itmes in the if statement {item}')
 
-# do this instead
-# SELECT sum(num_shares*last_price) from transactions where owner_username = 'John' AND ticker_symbol = 'x';
-        for transaction in transactions:
-
-            ticker_symbol = transaction[1]
-            trade_volume = transaction[2]
-            username = transaction[3]
-            last_price = transaction[4]
-
-            shares = 'SELECT num_shares FROM holdings WHERE username = "{}" AND ticker_symbol = "{}"'.format(username, symbol)
-            cursor.execute(shares)
-            num_shares = cursor.fetchall()
-            num_shares = num_shares[0][0]
-
-            total_shares += num_shares
-            print(f'this is the num_shares {num_shares}')
-            print(f'total shares {total_shares}')
-
-            purchased_price  = 'SELECT last_price FROM holdings WHERE username = "{}" AND ticker_symbol = "{}"'.format(username, symbol)
-            cursor.execute(purchased_price)
-            purchased_price = cursor.fetchall()
-            purchase_price = purchased_price[0][0]
-            print(f' this is the purchjase price{purchase_price}')
-            price += num_shares * purchase_price
-            price += price/total_shares
-        print(f'this is the price {price}')
-        print(f'this is the total shares {total_shares}')
-        p_and_l += price/total_shares
+        else:
+            cursor.execute("""
+            UPDATE leaderboard
+            SET p_and_l=?
+            WHERE username=?
+            ;""", (p_and_l, name))
+            # print(shares)
+            # print(p_and_l)
+            print(f' these are the items in the else statement {item}')
 
     connection.commit()
     cursor.close()
     connection.close()
-    return p_and_l
-
-
 
 def leaderboard():
-    return 'this is the leaderboard you are an admin'
-#    connection = sqlite3.connect('trade_information.db',check_same_thread=False)
-#    cursor = connection.cursor()
-
-#    query_one = "SELECT username FROM holdings;"
-#    cursor.execute(query_one)
-#    usernames = cursor.fetchall()
-
-#    print(usernames)
-
-#    for user in usernames:
-#        query_two = 'SELECT current_balance FROM user WHERE username="{}";'.format(user)
-#        cursor.execute(query_two)
-#        cash = cursor.fetchone()
-
-#        ticker_symbol = []
-#        query_three = cursor.execute('SELECT ticker_symbol FROM holdings WHERE username = "{}";'.format(user))
-#        cursor.execute(query_three)
-#        ticker_symbol = fetchall()
-
-#        for ticker in ticker_symbol:
-#            query_four = cursor.execute('SELECT (last_price*num_shares) FROM holdings WHERE ticker_symbol= "{}";'.format(ticker))
-#            cursor.execute(query_four)
-#            holding_mv= fetchone()
-
-#    cursor.execute("""
-#        UPDATE leaderboard(username)
-#        VALUES(
-#        '{}',{}
-#        );""".format(user, total_mv)
-#    )
-#    leaderboard = ("SELECT * FROM leaderboard")
-
-#    total_mv = cash + holding_mv
-#    leaderboard = f'{username} {total_mv}\n'
-
-#    connection.commit()
-#    cursor.close()
-#    connection.close()
-#    return leaderboard
-#    cash = cursor.execute("SELECT current_balance FROM user WHERE username = {};".format(username))
-#    username = current_user()
-#    symbols=cursor.execute("SELECT ticker_symbol FROM holdings WHERE user='{}'".format(username))
-#    for symbol in symbols:
-#        last_sale = float(quote_last(symbol))
-#        select num_shares per symbol
-#        shares = cursor.execute("SELECT num_shares FROM holdings WHERE ticker_symbol='{}'".format(symbol))
-#        profit = last_sale
+    # return 'this is the leaderboard you are an admin'
+    if is_admin() == True:
+        calculate_p_and_l()
+        connection = sqlite3.connect('trade_information.db',check_same_thread=False)
+        cursor = connection.cursor()
+        query = 'SELECT * FROM leaderboard;'
+        cursor.execute(query)
+        leaderboard = cursor.fetchall()
+        print(f'\n\n\n\n leaderboad{leaderboard} \n\n\n\n')
+        return leaderboard
+    else: 
+        return 'you must be an admin to view this page'
 
 def holdings():
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
-    database = 'trade_information.db'
-
     username = current_user()
     query = 'SELECT * FROM holdings WHERE username = "{}";'.format(username)
     cursor.execute(query)
@@ -437,7 +394,7 @@ def history():
     cursor = connection.cursor()
     username = current_user()
     print(username)
-    query = f'SELECT * FROM transactions WHERE owner_username = "{username}"'
+    query = f'SELECT * FROM transactions WHERE username = "{username}"'
     cursor.execute(query)
     history = cursor.fetchall()
     print(history)

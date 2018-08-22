@@ -5,14 +5,20 @@
         <meta charset="utf8">
         <title>Stock Quote</title>
     </head>
+    <style>
+            body {
+            color: #939899;
+            background-color: #000000;
+        }
+        </style>
     <body>
         <!-- this is displayed on the webpage -->
+        <a href="/menu">Main Menu</a>
         <h1>Stock Quote</h1>
         <form action="/quote" method="post">
             <input name="ticker_symbol" placeholder="Symbol">
         </form>
         <h2>Last Sale</h2>
             {{result}}
-        <a href="/menu">Main Menu</a>
 
     </body>

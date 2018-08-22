@@ -136,15 +136,12 @@ def history():
 
 @app.route('/leaderboard',methods=['GET','POST'])
 def leaderboard():
-    if m.is_admin() == True:
-        if request.method=="GET":
-            result = m.leaderboard()
-            return render_template('leaderboard.html', result=result)
-        else:
-            pass
-    else:
-        result = 'You need to be an administrator to view the leaderboard'
+    if request.method=="GET":
+        m.calculate_p_and_l()
+        result = m.leaderboard()
         return render_template('leaderboard.html', result=result)
+    else:
+        pass
 
 if __name__ == '__main__':
     app.run(debug=True)

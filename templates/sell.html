@@ -5,14 +5,20 @@
         <meta charset="utf8">
         <title>SELL MENU</title>
     </head>
+    <style>
+            body {
+            color: #939899;
+            background-color: #000000;
+        }
+        </style>
     <body>
         <!-- this is displayed on the webpage -->
+        <a href="/menu">Main Menu</a>
         <h1>SELL MENU</h1>
         <form action="/sell" method="post">
             <input name="ticker_symbol" placeholder="symbol">
             <input name="number_of_shares" placeholder="no. of shares">
             <input type="submit">
-            <a href="/menu">Main Menu</a>
         </form>
         <h2>{{result}}</h2>
     </body>
