@@ -7,10 +7,12 @@ cursor = connection.cursor()
 
 cursor.execute(
     """CREATE TABLE user(
-        username TXT PRIMARY KEY,
+        pk INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT,
         password VARCHAR,
         current_balance FLOAT,
-        is_admin INTEGER
+        is_admin INTEGER,
+        api_key VARCHAR
     );"""
 )
 

@@ -1,16 +1,14 @@
-#!/usr/bin/env
+#!/usr/bin/env python
 
 import json
 
 import sqlite3
-
 import requests
-
+import uuid
 
 def is_admin():
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
-    database = 'trade_information.db'
     username = current_user()
     username = username
     query = 'SELECT is_admin FROM user WHERE username = "{}"'.format(username)
@@ -73,17 +71,20 @@ def log_in(user_name,password):
 def create_(new_user,new_password,new_fund,admin):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
+    api_key = uuid.uuid4()
     cursor.execute(
         f"""INSERT INTO user(
             username,
             password,
             current_balance,
-            is_admin
+            is_admin,
+            api_key
             ) VALUES(
             "{new_user}",
             "{new_password}",
             {new_fund},
-            {admin}
+            {admin},
+            "{api_key}"
         );"""
     )
     connection.commit()
@@ -101,14 +102,8 @@ def updateHoldings():
     connection.close()
 
 def sell(username, ticker_symbol, trade_volume):
-    #we have to search for how many of the stock we have
-    #compare trade volume with how much stock we have
-    #if trade_volume <= our stock, proceed
-    #else return to menu
-    #we need a database to save how much money we have and how much stock
     username = current_user()
-    database = 'trade_information.db'
-    connection = sqlite3.connect(database, check_same_thread=False)
+    connection = sqlite3.connect('trade_information.db', check_same_thread=False)
     cursor = connection.cursor()
     query = 'SELECT count(*), num_shares FROM holdings WHERE username = "{}" AND ticker_symbol = "{}"'.format(username, ticker_symbol)
     cursor.execute(query)
@@ -131,8 +126,9 @@ def sell(username, ticker_symbol, trade_volume):
     print("\nExpected user balance after transaction:", agg_balance)
     return_list = (last_price, brokerage_fee, current_balance, trade_volume,agg_balance,username,ticker_symbol, current_number_shares)
 
-
     if current_number_shares >= trade_volume:
+        sell_db(return_list)
+        updateHoldings()
         return True, return_list #success
     else:
         return False, return_list
@@ -191,24 +187,19 @@ def sell_db(return_list):
 
 def buy(username, ticker_symbol, trade_volume):
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
-    cursor = connection.cursor()
-    database = 'trade_information.db'
-    #we need to return True or False for the confirmation message
     trade_volume = float(trade_volume)
+    print(f" this is the buy symbol{ticker_symbol}")
     last_price = float(quote_last(ticker_symbol))
     brokerage_fee = 6.95 #TODO un-hardcode this value
     username = current_user()
-#    print(username)
+    print(f' buy functon username {username}')
     current_balance = get_user_balance(username) #TODO un-hardcode this value
     print("last price", last_price)
-    print("brokerage fee", brokerage_fee)
-    print("current balance", current_balance)
     transaction_cost = (trade_volume * last_price) + brokerage_fee
-    print("Total cost of Transaction:", transaction_cost)
     left_over = float(current_balance[0]) - float(transaction_cost)
-    print("\nExpected user balance after transaction:", left_over)
     return_list = (last_price, brokerage_fee, current_balance[0], trade_volume,left_over,username,ticker_symbol)
     if transaction_cost <= current_balance[0]:
+        buy_db(return_list)
         return True, return_list #success
     else:
         return False, return_list
@@ -217,6 +208,7 @@ def buy(username, ticker_symbol, trade_volume):
 
 
 def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_balance, trade_volume, left_over, username, ticker_symbol)
+    print(f'this si the return list {return_list}')
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
     database = 'trade_information.db'
@@ -235,8 +227,8 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
     cursor.execute(f"""
         UPDATE user
         SET current_balance = {left_over}
-        WHERE username = '{username}';
-    """
+        WHERE username = '{username}'
+    ;"""
     )
     #transactions
     cursor.execute(f"""
@@ -252,9 +244,10 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
 
         #inserting information
     #holdings
-    query = 'SELECT count(*), num_shares FROM holdings WHERE username = "{}" AND ticker_symbol = "{}"'.format(username, ticker_symbol)
+    query = 'SELECT count(*), num_shares, avg_price FROM holdings WHERE username = "{}" AND ticker_symbol = "{}"'.format(username, ticker_symbol)
     cursor.execute(query)
     fetch_result = cursor.fetchone()
+    print(f'fetch result {fetch_result}')
     if fetch_result[0] == 0: #if the user didn't own the specific stock
         cursor.execute(f'''
             INSERT INTO holdings(last_price, num_shares, ticker_symbol, username, avg_price)
@@ -264,7 +257,9 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
         )
     else: #if the user already has the same stock
         tot_shares = float(fetch_result[1])+float(trade_volume)
+        print(f' tot shares  {tot_shares}')
         calc_avg = (float(fetch_result[2]*float(fetch_result[1]) + trade_volume*last_price)/tot_shares)
+        print(f'calc avg {calc_avg}')
         cursor.execute(f'''
             UPDATE holdings
             SET num_shares = {tot_shares}, last_price = {last_price}, avg_price ={calc_avg}
@@ -284,6 +279,7 @@ def get_user_balance(username):
     query = f'SELECT current_balance FROM user WHERE username = "{username}";'
     cursor.execute(query)
     fetched_result = cursor.fetchone()
+    print(f' this is the get balance result {fetched_result}')
     cursor.close()
     connection.close()
     return fetched_result #cursor.fetchone() returns tuples
@@ -302,7 +298,6 @@ def calculate_balance(ticker_symbol, trade_volume):
 
 
 def lookup_ticker_symbol(company_name):
-    connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     endpoint = 'http://dev.markitondemand.com/MODApis/Api/v2/Lookup/json?input='+company_name
     #FIXME The following return statement assumes that only one
     #ticker symbol will be matched with the user's input.
@@ -320,8 +315,8 @@ def calculate_p_and_l():
     query_hold = f'SELECT * FROM holdings'
     cursor.execute(query_hold)
     holding_info = cursor.fetchall()
+    print(f'this is the holding info {holding_info}')
     update_leaderboard(holding_info)
-    print(f'\n\n\n\nthis is the holding info {holding_info}\n\n\n\n')
     cursor.close()
     connection.close()
 
@@ -339,7 +334,6 @@ def update_leaderboard(holding_info):
         x = cursor.execute(f'SELECT count(*) FROM leaderboard WHERE username = "{name}";')
         count = cursor.fetchall()
         count = count [0][0]
-        print(f'\n\n\n\n this is the count{count}\n\n\n\n')
         if count == 0:
             cursor.execute(f"""
             INSERT INTO leaderboard(
@@ -348,17 +342,13 @@ def update_leaderboard(holding_info):
             {p_and_l}, "{name}");""")
             # print(shares)
             # print(p_and_l)
-            print(f'these are the itmes in the if statement {item}')
 
         else:
-            cursor.execute("""
+                cursor.execute("""
             UPDATE leaderboard
             SET p_and_l=?
             WHERE username=?
             ;""", (p_and_l, name))
-            # print(shares)
-            # print(p_and_l)
-            print(f' these are the items in the else statement {item}')
 
     connection.commit()
     cursor.close()
@@ -370,10 +360,19 @@ def leaderboard():
         calculate_p_and_l()
         connection = sqlite3.connect('trade_information.db',check_same_thread=False)
         cursor = connection.cursor()
-        query = 'SELECT * FROM leaderboard;'
+        query = 'SELECT username, p_and_l FROM leaderboard;'
         cursor.execute(query)
-        leaderboard = cursor.fetchall()
-        print(f'\n\n\n\n leaderboad{leaderboard} \n\n\n\n')
+        raw_leaderboard = cursor.fetchall()
+        print(f'\n\n\n\n leaderboad {raw_leaderboard} \n\n\n\n')
+        query_two = 'SELECT username, current_balance FROM user'
+        cursor.execute(query_two)
+        raw_user = cursor.fetchall()
+        print(f'\n\nraw user {raw_user}\n\n')
+
+        
+        leaderboard = [] 
+
+
         return leaderboard
     else: 
         return 'you must be an admin to view this page'
@@ -393,7 +392,7 @@ def history():
     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
     cursor = connection.cursor()
     username = current_user()
-    print(username)
+    # print(username)
     query = f'SELECT * FROM transactions WHERE username = "{username}"'
     cursor.execute(query)
     history = cursor.fetchall()
@@ -404,19 +403,51 @@ def history():
 
 
 def log_out():
-    log_in('aosdnoindc','aonsdoianf')
+    log_in('loggedout','aonsdoianf')
     try:
         cursor.close()
         connection.close()
     except:
         print('connection already closed')
 
+def api_authenticate(apikey):
+    connection = sqlite3.connect('trade_information.db',check_same_thread=False)
+    cursor = connection.cursor()
+    SQL = "SELECT pk,username FROM user WHERE api_key=?;"
+    cursor.execute(SQL, (apikey,))
+    row = cursor.fetchone()
+    response = row
+    print(row)
+    cursor.close()
+    connection.close()
+    return response
+
+def api_key(pk):
+    connection = sqlite3.connect('trade_information.db',check_same_thread=False)
+    cursor = connection.cursor()
+    SQL="SELECT api_key FROM user WHERE pk = ?;"
+    cursor.execute(SQL, (pk,))
+    row = cursor.fetchone()
+    connection.close()
+    return row[0]
+
+# TODO refactor all the functions above using the following connection & close functions
+
+# def connect():
+#     connection = sqlite3.connect('trade_information.db',check_same_thread=False)
+#     cursor = connection.cursor()
+
+# def  close():
+#     cursor.close()
+#     connection.close()
+
 
 if __name__ == '__main__':
     # print(lookup_ticker_symbol("tesla"))
     # print(find_quote("tesla"))
     # print(lookup_ticker_symbol('asdfajHLSKDJHFA')) #FIXME This is the code that isn't passing
-#    print(calculate_p_and_l('John'))
-    print(leaderboard())
-#    print(is_admin())
-
+    # print(calculate_p_and_l('John'))
+    # print(leaderboard())
+    # print(is_admin())
+    # print(api_key(1))
+    print(api_authenticate('2d0ce0c7-e264-449e-a6a2-89ed260da95b'))

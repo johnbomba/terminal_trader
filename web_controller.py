@@ -4,11 +4,158 @@ import time
 import os
 import sqlite3
 
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
 
 app = Flask(__name__)
 username = ''
-#session['username'] = username
+
+def api_authenticate(apikey):
+    row = m.api_authenticate(apikey)
+    if row is None:
+        return None, None
+    else:
+        return row
+
+def errormsg(message):
+    return jsonify({
+            "error": True,
+            "message": message
+        })
+
+@app.route("/api/getbalance/<apikey>", methods=["GET"])
+def getbalance(apikey):
+    pk, username = api_authenticate(apikey)
+    if not pk:
+        return errormsg("could not authenticate")
+    else:
+        balance = "{:.2f}".format(m.get_user_balance(username))
+        return jsonify({
+            "error": False,
+            "username": username,
+            "balance": balance,
+            "message": "Request succeeded"
+        })
+
+@app.route("/api/buy/<apikey>", methods=["POST"])
+def _buy(apikey):
+    pk, username = api_authenticate(apikey)
+    if not pk:
+        return errormsg("could not authenticate")
+    if not request.json:
+        return errormsg("no buy order")
+    if "symbol" not in request.json or "amount" not in request.json:
+        return errormsg("bad order")
+    try:
+        amount = int(request.json["amount"])
+    except:
+        return errormsg("bad amount")
+    symbol = request.json["symbol"]
+
+    response = m.buy(username, symbol, amount)
+    if not response:
+        return jsonify({
+            "error" : True,
+            "symbol" : symbol,
+            "amount" : amount,
+            "message": "Buy order failed"
+        })
+    else:
+        return jsonify({
+            "error" : False,
+            "symbol" : symbol,
+            "amount" : amount,
+            "message" : "Buy order succeeded"
+        })
+
+@app.route("/api/sell/<apikey>", methods=["POST"])
+def _sell(apikey):
+    pk, username = api_authenticate(apikey)
+    if not pk:
+        return errormsg("could not authenticate")
+    if not request.json:
+        return errormsg("no sell order")
+    if "symbol" not in request.json or "amount" not in request.json:
+        return errormsg("bad order")
+    try:
+        amount = int(request.json["amount"])
+    except:
+        return errormsg("bad amount")
+    symbol = request.json["symbol"]
+
+    response = m.sell(username, symbol, amount)
+    if not response:
+        return jsonify({
+            "error" : True,
+            "symbol" : symbol,
+            "amount" : amount,
+            "message": "Buy order failed"
+        })
+    else:
+        return jsonify({
+            "error" : False,
+            "symbol" : symbol,
+            "amount" : amount,=
+            "message" : "Sell order succeeded"
+        })
+
+
+
+@app.route("/api/quote/<apikey>", methods=["GET"])
+def _quote(apikey):
+pk, username = api_authenticate(apikey)
+    if not pk:
+        return errormsg("could not authenticate")
+    if not request.json:
+        return errormsg("Invalid format")
+    if "symbol" not in request.json:
+        return errormsg("bad order")
+    symbol = request.json["symbol"]
+
+    response = m.quote_last( symbol)
+    if not response:
+        return jsonify({
+            "error" : True,
+            "symbol" : symbol,
+            "LastPrice" : LastPrice,
+            "message": "quote failed"
+        })
+    else:
+        return jsonify({
+            "error" : False,
+            "symbol" : symbol,
+            "LastPrice" : LastPrice,=
+            "message" : "last sale"
+        })
+
+@app.rout("/api/lookup/<apikey>", methods=["GET"])
+def _lookup(apikey):
+    if not pk:
+        return errormsg("could not authenticate")
+    if not request.json:
+        return errormsg("Invalid format")
+    if "company" not in request.json:
+        return errormsg("No company name")
+    company = request.json["company"]
+
+    response = m.lookup_ticker_symbol(company_name)
+if not response:
+        return jsonify({
+            "error" : True,
+            "company_name" : company_name,
+            "message": "look up failed"
+        })
+    else:
+        return jsonify({
+            "error" : False,
+            "company_name" : company_name,=
+            "message" : "last sale"
+        })
+
+
+
+
+
+##########################################
 
 @app.route('/login',methods=['GET','POST'])
 def login():
@@ -91,9 +238,8 @@ def buy():
         submitted_volume=request.form['number_of_shares']
         submitted_volume = int(submitted_volume)
         confirmation_message, return_list = m.buy(username,submitted_symbol,submitted_volume)
-        result = f"You paid{m.quote_last(submitted_symbol)} for {submitted_volume} shares of {submitted_symbol}."
+        result = f"You paid {m.quote_last(submitted_symbol)} for {submitted_volume} shares of {submitted_symbol}."
         if confirmation_message == True:
-            m.buy_db(return_list)
             return render_template('buy.html', result=result)
         else:
             return render_template('buy.html')
@@ -110,8 +256,6 @@ def sell():
         confirmation_message, return_list = m.sell(username,submitted_symbol,submitted_volume)
         result = f"You sold {submitted_volume} shares of {submitted_symbol} at {m.quote_last(submitted_symbol)}"
         if confirmation_message == True:
-            m.sell_db(return_list)
-            m.updateHoldings()
             return render_template('sell.html', result=result)
         else:
             return render_template('sell.html')

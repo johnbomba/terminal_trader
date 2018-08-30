@@ -1,31 +1,50 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <!-- this isn't displayed on the webpage -->
-        <meta charset="utf8">
-        <title>WebTrader</title>
-    </head>
-    <style>
-            body {
-            color: #939899;
-            background-color: #000000;
-        }
-        </style>
-    <body>
-        <!-- this is displayed on the webpage -->
-        <h1>WebTrader Login</h1>
-        <a href="/create">Create an Account</a>
-        <form action="/login" method="post">
-            <input name="username" placeholder="username">
-            <input type= "password" name="password" placeholder="password">
-            <input type="submit">
-        </form>
-    <body/>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+ 
+    <title>WebTrader Login</title>
 
+    <!-- Bootstrap core CSS -->
+    <link href="https://getbootstrap.com/docs/4.1/dist/css/bootstrap.min.css" rel="stylesheet">
 
-<!--<h3>Hi, <span style="color:red"> {{name}} </span></h3> -->
-<!-- <h3>Hi, <span style="color:#00FF00"> {{name}} </span></h3> -->
-<!-- this is how you comment stuff out -->
-
+    <!-- Custom styles for this template -->
+    <link href="https://getbootstrap.com/docs/4.1/examples/sign-in/signin.css" rel="stylesheet">   
+  </head>
+  <style>
+          body{
+            color: #fffefe;
+            background-color: #030000;
+          }
+            .btn {
+            background-color: #a5138d8c;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+          }
+  </style>
+  <body class="text-center">
+    <form action="/login" method="post" class="form-signin">
+      <h1 class="h3 mb-3 font-weight-normal">Welcome To WebTrader</h1>
+      <h1 class="h3 mb-3 font-weight-normal">Please Log In</h1>
+      <label for="username" class="sr-only">Username</label>
+      <input name="username" type="username" class="form-control" placeholder="Username" required autofocus>
+      <label for="password" class="sr-only">Password</label>
+      <input name= "password" type="password" id="inputPassword" class="form-control" placeholder="Password" required autofocus>
+      <button class="btn btn-lg btn-primary btn-block" type="submit">Log In</button>
+      <a href="/create">Create an Account</a>
+      <p class="mt-5 mb-3 text-muted">&copy; john bomba 2018</p>
+    </form>
+  </body>
+</html>
 
 
