@@ -223,7 +223,7 @@ def buy_db(return_list): # return_list = (last_price, brokerage_fee, current_bal
 
     #update users(current_balance), stocks, holdings.
     #users
-        #updating the balance of the user
+        #updating the balance of the userINSERT INTO
     cursor.execute(f"""
         UPDATE user
         SET current_balance = {left_over}

@@ -94,7 +94,7 @@ def _sell(apikey):
         return jsonify({
             "error" : False,
             "symbol" : symbol,
-            "amount" : amount,=
+            "amount" : amount,
             "message" : "Sell order succeeded"
         })
 
@@ -102,7 +102,7 @@ def _sell(apikey):
 
 @app.route("/api/quote/<apikey>", methods=["GET"])
 def _quote(apikey):
-pk, username = api_authenticate(apikey)
+    pk, username = api_authenticate(apikey)
     if not pk:
         return errormsg("could not authenticate")
     if not request.json:
@@ -123,11 +123,11 @@ pk, username = api_authenticate(apikey)
         return jsonify({
             "error" : False,
             "symbol" : symbol,
-            "LastPrice" : LastPrice,=
+            "LastPrice" : LastPrice,
             "message" : "last sale"
         })
 
-@app.rout("/api/lookup/<apikey>", methods=["GET"])
+@app.route("/api/lookup/<apikey>", methods=["GET"])
 def _lookup(apikey):
     if not pk:
         return errormsg("could not authenticate")
@@ -138,7 +138,7 @@ def _lookup(apikey):
     company = request.json["company"]
 
     response = m.lookup_ticker_symbol(company_name)
-if not response:
+    if not response:
         return jsonify({
             "error" : True,
             "company_name" : company_name,
@@ -147,7 +147,7 @@ if not response:
     else:
         return jsonify({
             "error" : False,
-            "company_name" : company_name,=
+            "company_name" : company_name,
             "message" : "last sale"
         })
 
